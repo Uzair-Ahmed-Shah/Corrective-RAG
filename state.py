@@ -1,11 +1,12 @@
-from typing import List, Dict, TypedDict
+from typing import List, Dict, TypedDict, Optional
+
 
 class GraphState(TypedDict):
-    """The state dictionary for our CRAG Agent."""
     question: str
-    chat_history: List[Dict[str, str]]  
+    chat_history: List[Dict[str, str]]
     documents: List[str]
+    retrieved_context: List[str]
+    intent: str
     web_search: bool
     generation: str
-    iteration: int 
-    
+    iteration: int
