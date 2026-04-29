@@ -150,7 +150,11 @@ def web_search(state: GraphState):
     question = state["question"]
 
     search_result = tavily.search(query=question, search_depth="advanced")
-    search_content = [r["content"] for r in search_result["results"]]
+    
+    search_content = []
+    for r in search_result.get("results", []):
+        content = f"Title: {r.get('title', 'Web Result')}\nURL: {r.get('url', '#')}\nSummary: {r.get('content', '')}"
+        search_content.append(content)
 
     return {"documents": search_content, "retrieved_context": search_content}
 

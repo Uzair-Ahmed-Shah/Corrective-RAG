@@ -382,6 +382,8 @@ def show_chat(user: dict):
                             web_ctx = value.get("retrieved_context", [])
                             if web_ctx:
                                 st.session_state.retrieved_context = web_ctx
+                                st.session_state.current_papers = library.parse_papers_from_context(web_ctx)
+                                st.session_state.saved_article_ids = set()
                         elif key == "generate":
                             st.write("✍️ Synthesizing final answer...")
                             final_response = value.get("generation", "")
@@ -389,6 +391,39 @@ def show_chat(user: dict):
                 status.update(label="Research Complete!", state="complete", expanded=False)
 
             st.markdown(final_response)
+
+            if st.session_state.current_papers:
+                st.markdown("---")
+                st.markdown(
+                    "<div style='font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:0.5rem;'>📌 FOUND RESOURCES</div>",
+                    unsafe_allow_html=True,
+                )
+                for paper in st.session_state.current_papers:
+                    art_id = paper["url"]
+                    is_saved = art_id in st.session_state.saved_article_ids
+                    col_text, col_btn = st.columns([5, 1])
+                    with col_text:
+                        st.markdown(
+                            f'<div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">'
+                            f'<a href="{paper["url"]}" target="_blank" style="color:#a5b4fc;text-decoration:none;">{paper["title"]}</a>'
+                            f'</div>'
+                            f'<div style="font-size:0.75rem;color:#64748b;">{paper.get("published_date", "")}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    with col_btn:
+                        if is_saved:
+                            st.button("✓ Saved", key=f"inline_done_{art_id}", disabled=True)
+                        else:
+                            if st.button("💾 Save", key=f"inline_save_{art_id}"):
+                                with st.spinner("Classifying topic..."):
+                                    existing_labels = library.get_existing_labels(supabase, user["sub"])
+                                    topic = library.classify_topic(
+                                        paper["title"], paper.get("summary", ""), existing_labels
+                                    )
+                                    if library.save_article(supabase, user["sub"], paper, topic):
+                                        st.session_state.saved_article_ids.add(art_id)
+                                        refresh_library(user["sub"])
+                                        st.rerun()
 
         save_chat_message(st.session_state.session_id, "assistant", final_response)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
