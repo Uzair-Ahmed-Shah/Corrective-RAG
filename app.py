@@ -6,136 +6,78 @@ from dotenv import load_dotenv
 from graph import app as graph_app
 import auth
 import library
+from streamlit_cookies_controller import CookieController
 
 load_dotenv()
 
 st.set_page_config(
-    page_title="CRAG Research Agent",
+    page_title="CRAG — Research Agent",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+/* Basic Font & Background */
+html, body, [class*="css"] { 
+    font-family: 'Inter', -apple-system, sans-serif; 
+}
 
-    .auth-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 3rem 1rem;
-    }
-    .auth-card {
-        background: rgba(17, 25, 40, 0.85);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 2.5rem 2rem;
-        width: 100%;
-        max-width: 420px;
-        backdrop-filter: blur(12px);
-    }
-    .auth-logo {
-        font-size: 2.8rem;
-        text-align: center;
-        margin-bottom: 0.25rem;
-    }
-    .auth-title {
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #f1f5f9;
-        margin-bottom: 0.3rem;
-    }
-    .auth-subtitle {
-        text-align: center;
-        font-size: 0.85rem;
-        color: #94a3b8;
-        margin-bottom: 2rem;
-    }
-    .user-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 0;
-        margin-bottom: 1rem;
-    }
-    .avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 700;
-        font-size: 1rem;
-        flex-shrink: 0;
-    }
-    .paper-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 10px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 0.6rem;
-        transition: border-color 0.2s;
-    }
-    .paper-card:hover {
-        border-color: rgba(99, 102, 241, 0.35);
-    }
-    .paper-title {
-        font-weight: 600;
-        font-size: 0.88rem;
-        color: #e2e8f0;
-        margin-bottom: 0.3rem;
-        line-height: 1.4;
-    }
-    .paper-meta {
-        font-size: 0.75rem;
-        color: #64748b;
-        margin-bottom: 0.4rem;
-    }
-    .paper-summary {
-        font-size: 0.8rem;
-        color: #94a3b8;
-        line-height: 1.5;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-    .topic-badge {
-        display: inline-block;
-        background: rgba(99, 102, 241, 0.15);
-        border: 1px solid rgba(99, 102, 241, 0.35);
-        color: #a5b4fc;
-        border-radius: 20px;
-        padding: 2px 10px;
-        font-size: 0.72rem;
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
-    .section-header {
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: #475569;
-        margin: 1.25rem 0 0.5rem 0;
-    }
-    .save-success {
-        font-size: 0.75rem;
-        color: #34d399;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+/* 
+   FIX: Restore the Sidebar Toggle 
+   Instead of display:none, we just hide the 'rainbow' line and 3-dot menu 
+   without collapsing the header area.
+*/
+[data-testid="stHeader"] {
+    background: transparent;
+}
+[data-testid="stToolbar"] {
+    right: 1.5rem; /* Moves the 3-dot menu slightly so it doesn't overlap */
+}
+[data-testid="stDecoration"] {
+    display: none; /* This is the rainbow bar; usually safe to hide */
+}
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background: #111827;
+    border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Chat Message Styling (The 'Chat Bubbles' you wanted) */
+[data-testid="stChatMessage"] { 
+    padding: 1rem; 
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Button & Input Styling */
+.stButton > button {
+    border-radius: 7px;
+    font-weight: 500;
+}
+
+/* Custom Classes for Library Groups */
+.section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #475569;
+    margin: 1rem 0 0.5rem 0;
+}
+
+.paper-row {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -149,6 +91,7 @@ def init_supabase() -> Client:
 
 
 supabase = init_supabase()
+controller = CookieController()
 
 
 def init_session():
@@ -160,6 +103,7 @@ def init_session():
         "current_papers": [],
         "saved_article_ids": set(),
         "library": {},
+        "_needs_library_refresh": False,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -192,14 +136,21 @@ def save_chat_message(session_id: str, role: str, content: str):
 def refresh_library(user_id: str):
     st.session_state.library = library.load_library(supabase, user_id)
 
+def handle_save_article(art_id, paper, user_sub):
+    existing = library.get_existing_labels(supabase, user_sub)
+    topic = library.classify_topic(paper["title"], paper.get("summary", ""), existing)
+    if library.save_article(supabase, user_sub, paper, topic):
+        st.session_state.saved_article_ids.add(art_id)
+        st.session_state._needs_library_refresh = True
 
 def show_auth_page():
-    _, col, _ = st.columns([1, 1.6, 1])
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, col, _ = st.columns([1, 1.4, 1])
     with col:
-        st.markdown('<div class="auth-logo">🧬</div>', unsafe_allow_html=True)
+        st.markdown("🧬", unsafe_allow_html=True)
         st.markdown('<div class="auth-title">CRAG Research Agent</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="auth-subtitle">AI-powered research with arXiv retrieval and intelligent fallbacks</div>',
+            '<div class="auth-sub">AI-powered research with arXiv retrieval and intelligent web search fallbacks.</div>',
             unsafe_allow_html=True,
         )
 
@@ -216,11 +167,11 @@ def show_auth_page():
                     else:
                         token = auth.login(supabase, email, password)
                         if token:
-                            st.session_state.token = token
+                            controller.set("auth_token", token, max_age=14*24*60*60)
                             user = auth.decode_token(token)
+                            st.session_state.token = token
                             st.session_state.session_id = str(user["sub"])
                             st.session_state.messages = load_chat_history(user["sub"])
-                            refresh_library(user["sub"])
                             st.rerun()
                         else:
                             st.error("Invalid email or password.")
@@ -228,8 +179,8 @@ def show_auth_page():
         with tab_signup:
             with st.form("signup_form"):
                 name = st.text_input("Full Name", placeholder="Jane Smith")
-                email_s = st.text_input("Email", placeholder="you@example.com", key="signup_email")
-                password_s = st.text_input("Password", type="password", placeholder="Min. 8 characters", key="signup_pw")
+                email_s = st.text_input("Email", placeholder="you@example.com", key="s_email")
+                password_s = st.text_input("Password", type="password", placeholder="Min. 8 characters", key="s_pw")
                 submitted_s = st.form_submit_button("Create Account", use_container_width=True, type="primary")
                 if submitted_s:
                     if not name or not email_s or not password_s:
@@ -239,11 +190,11 @@ def show_auth_page():
                     else:
                         token = auth.signup(supabase, name, email_s, password_s)
                         if token:
-                            st.session_state.token = token
+                            controller.set("auth_token", token, max_age=14*24*60*60)
                             user = auth.decode_token(token)
+                            st.session_state.token = token
                             st.session_state.session_id = str(user["sub"])
                             st.session_state.messages = []
-                            st.session_state.library = {}
                             st.rerun()
                         else:
                             st.error("An account with this email already exists.")
@@ -253,98 +204,92 @@ def show_sidebar(user: dict):
     with st.sidebar:
         initial = user["name"][0].upper()
         st.markdown(
-            f'<div class="user-header">'
+            f'<div class="user-block">'
             f'<div class="avatar">{initial}</div>'
-            f'<div><div style="font-weight:600;font-size:0.9rem;color:#e2e8f0">{user["name"]}</div>'
-            f'<div style="font-size:0.75rem;color:#64748b">{user["email"]}</div></div>'
+            f'<div><div class="user-name">{user["name"]}</div>'
+            f'<div class="user-email">{user["email"]}</div></div>'
             f'</div>',
             unsafe_allow_html=True,
         )
 
-        if st.button("Sign Out", use_container_width=True):
-            for key in ["token", "session_id", "messages", "retrieved_context",
-                        "current_papers", "saved_article_ids", "library"]:
-                st.session_state[key] = [] if isinstance(st.session_state.get(key), list) else (
-                    set() if isinstance(st.session_state.get(key), set) else
-                    ({} if isinstance(st.session_state.get(key), dict) else None)
-                )
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Clear Chat", use_container_width=True):
+                supabase.table("chat_messages").delete().eq("session_id", user["sub"]).execute()
+                st.session_state.messages = []
+                st.session_state.current_papers = []
+                st.session_state.saved_article_ids = set()
+                st.session_state.retrieved_context = []
+                st.rerun()
+        with col2:
+            if st.button("Sign Out", use_container_width=True):
+                controller.remove("auth_token")
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
+                st.rerun()
 
-        if st.session_state.current_papers:
-            st.markdown('<div class="section-header">📌 Current Research</div>', unsafe_allow_html=True)
-            for paper in st.session_state.current_papers:
-                art_id = paper["url"]
-                is_saved = art_id in st.session_state.saved_article_ids
-                with st.container():
-                    st.markdown(
-                        f'<div class="paper-card">'
-                        f'<div class="paper-title"><a href="{paper["url"]}" target="_blank" style="color:#e2e8f0;text-decoration:none;">{paper["title"]}</a></div>'
-                        f'<div class="paper-meta">{paper.get("published_date", "")}</div>'
-                        f'<div class="paper-summary">{paper.get("summary", "")[:200]}</div>'
-                        f'</div>',
-                        unsafe_allow_html=True,
-                    )
-                    if is_saved:
-                        st.markdown('<span class="save-success">✓ Saved</span>', unsafe_allow_html=True)
-                    else:
-                        if st.button("💾 Save", key=f"save_{art_id}", use_container_width=True):
-                            with st.spinner("Classifying topic..."):
-                                existing_labels = library.get_existing_labels(supabase, user["sub"])
-                                topic = library.classify_topic(
-                                    paper["title"], paper.get("summary", ""), existing_labels
-                                )
-                                success = library.save_article(supabase, user["sub"], paper, topic)
-                                if success:
-                                    st.session_state.saved_article_ids.add(art_id)
-                                    refresh_library(user["sub"])
-                                    st.rerun()
-
-        st.markdown('<div class="section-header">📚 Research Library</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-label">Research Library</div>', unsafe_allow_html=True)
 
         lib = st.session_state.library
         if not lib:
             st.markdown(
-                '<div style="font-size:0.8rem;color:#475569;padding:0.5rem 0;">Save papers from your research to build your library.</div>',
+                '<div class="empty-state">Save papers from any research response to build your personal library, organised by topic.</div>',
                 unsafe_allow_html=True,
             )
         else:
             for topic_label, articles in lib.items():
-                with st.expander(f"{topic_label} ({len(articles)})"):
+                with st.expander(f"{topic_label}  ·  {len(articles)}"):
                     for article in articles:
                         st.markdown(
-                            f'<div class="topic-badge">{topic_label}</div>'
-                            f'<div class="paper-title"><a href="{article["url"]}" target="_blank" style="color:#e2e8f0;text-decoration:none;">{article["title"]}</a></div>'
-                            f'<div class="paper-meta">{article.get("published_date", "")}</div>',
+                            f'<div class="paper-row">'
+                            f'<div><a class="paper-title-link" href="{article["url"]}" target="_blank">{article["title"]}</a></div>'
+                            f'<div class="paper-meta">{article.get("published_date", "")}</div>'
+                            f'</div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button("🗑️", key=f"del_{article['article_id']}_{article['id']}"):
+                        if st.button("Remove", key=f"del_{article['id']}"):
                             library.delete_article(supabase, user["sub"], article["article_id"])
                             st.session_state.saved_article_ids.discard(article["article_id"])
-                            refresh_library(user["sub"])
+                            st.session_state._needs_library_refresh = True
                             st.rerun()
-                        st.markdown("---")
 
 
 def show_chat(user: dict):
-    st.markdown("### 🧬 Corrective Research Agent")
-    st.markdown(
-        "<span style='color:#64748b;font-size:0.88rem'>Searches **arXiv** for papers. If they aren't relevant, autonomously switches to **Web Search**. Supports $\\LaTeX$ in responses.</span>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("---")
+    # 1. Page Header
+    st.markdown('<div class="chat-header-title">🧬 Corrective Research Agent</div>', unsafe_allow_html=True)
+    st.markdown('<div class="chat-header-sub">Retrieves papers from arXiv · Falls back to web search · Saves to your library</div>', unsafe_allow_html=True)
+    st.divider()
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Ask a technical question..."):
-        save_chat_message(st.session_state.session_id, "user", prompt)
+    if st.session_state.get("current_papers"):
+        with st.chat_message("assistant"):
+            st.markdown('**📚 Extracted Sources:**')
+            for paper in st.session_state.current_papers:
+                art_id = paper["url"]
+                is_saved = art_id in st.session_state.saved_article_ids
+                
+                col_text, col_btn = st.columns([6, 1])
+                with col_text:
+                    st.markdown(f'<div class="paper-row"><a class="paper-title-link" href="{paper["url"]}" target="_blank">{paper["title"]}</a></div>', unsafe_allow_html=True)
+                with col_btn:
+                    if is_saved:
+                        st.button("✓ Saved", key=f"perm_v_{art_id}", disabled=True)
+                    else:
+                        st.button("💾 Save", key=f"perm_save_{art_id}", on_click=handle_save_article, args=(art_id, paper, user["sub"]))
+
+    if prompt := st.chat_input("Ask a research question..."):
+
         st.session_state.messages.append({"role": "user", "content": prompt})
+        save_chat_message(st.session_state.session_id, "user", prompt)
+        
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.status("Agent is thinking...", expanded=True) as status:
+            with st.status("Thinking...", expanded=True) as status:
                 inputs = {
                     "question": prompt,
                     "chat_history": st.session_state.messages[:-1],
@@ -361,88 +306,73 @@ def show_chat(user: dict):
                     for key, value in output.items():
                         if key == "classify_intent":
                             intent = value.get("intent", "")
+                            if intent == "research":
+                                st.session_state.current_papers = []
+                                st.session_state.saved_article_ids = set()
                             icon = "🔬" if intent == "research" else "💬"
-                            st.write(f"{icon} Intent detected: **{intent.capitalize()}**")
+                            st.write(f"{icon} Intent: **{intent.capitalize()}**")
+
                         elif key == "rewrite_query":
-                            st.write(f"📝 Rewritten query: `{value.get('question')}`")
+                            st.write(f"📝 Query rewritten → `{value.get('question')}`")
+
                         elif key == "retrieve":
-                            st.write("🔍 Searching arXiv for relevant papers...")
+                            st.write("🔍 Searching arXiv...")
+
                         elif key == "grade_documents":
                             ctx = value.get("retrieved_context", [])
                             if value.get("web_search"):
-                                st.write("⚠️ No relevant papers found. Triggering web search fallback.")
+                                st.write("⚠️ Papers irrelevant — falling back to web search.")
                             else:
-                                st.write(f"✅ {len(ctx)} relevant paper(s) graded and retained.")
+                                st.write(f"✅ {len(ctx)} relevant paper(s) retained.")
                             if ctx:
                                 st.session_state.retrieved_context = ctx
                                 st.session_state.current_papers = library.parse_papers_from_context(ctx)
-                                st.session_state.saved_article_ids = set()
+
                         elif key == "web_search":
-                            st.write("🌐 Executing web search via Tavily...")
-                            web_ctx = value.get("retrieved_context", [])
-                            if web_ctx:
-                                st.session_state.retrieved_context = web_ctx
-                                st.session_state.current_papers = library.parse_papers_from_context(web_ctx)
-                                st.session_state.saved_article_ids = set()
+                            st.write("🌐 Searching the web via Tavily...")
+                            ctx = value.get("retrieved_context", [])
+                            if ctx:
+                                st.session_state.retrieved_context = ctx
+                                st.session_state.current_papers = library.parse_papers_from_context(ctx)
+
                         elif key == "generate":
-                            st.write("✍️ Synthesizing final answer...")
+                            st.write("✍️ Synthesising answer...")
                             final_response = value.get("generation", "")
 
-                status.update(label="Research Complete!", state="complete", expanded=False)
+                status.update(label="Done", state="complete", expanded=False)
 
             st.markdown(final_response)
 
-            if st.session_state.current_papers:
-                st.markdown("---")
-                st.markdown(
-                    "<div style='font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:0.5rem;'>📌 FOUND RESOURCES</div>",
-                    unsafe_allow_html=True,
-                )
-                for paper in st.session_state.current_papers:
-                    art_id = paper["url"]
-                    is_saved = art_id in st.session_state.saved_article_ids
-                    col_text, col_btn = st.columns([5, 1])
-                    with col_text:
-                        st.markdown(
-                            f'<div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">'
-                            f'<a href="{paper["url"]}" target="_blank" style="color:#a5b4fc;text-decoration:none;">{paper["title"]}</a>'
-                            f'</div>'
-                            f'<div style="font-size:0.75rem;color:#64748b;">{paper.get("published_date", "")}</div>',
-                            unsafe_allow_html=True,
-                        )
-                    with col_btn:
-                        if is_saved:
-                            st.button("✓ Saved", key=f"inline_done_{art_id}", disabled=True)
-                        else:
-                            if st.button("💾 Save", key=f"inline_save_{art_id}"):
-                                with st.spinner("Classifying topic..."):
-                                    existing_labels = library.get_existing_labels(supabase, user["sub"])
-                                    topic = library.classify_topic(
-                                        paper["title"], paper.get("summary", ""), existing_labels
-                                    )
-                                    if library.save_article(supabase, user["sub"], paper, topic):
-                                        st.session_state.saved_article_ids.add(art_id)
-                                        refresh_library(user["sub"])
-                                        st.rerun()
-
-        save_chat_message(st.session_state.session_id, "assistant", final_response)
-        st.session_state.messages.append({"role": "assistant", "content": final_response})
-
-
+            save_chat_message(st.session_state.session_id, "assistant", final_response)
+            st.session_state.messages.append({"role": "assistant", "content": final_response})
+            
+            st.rerun()
 def main():
     init_session()
 
-    user = auth.get_current_user(st.session_state)
+    cookie_token = controller.get("auth_token")
+    if cookie_token and not st.session_state.token:
+        user = auth.decode_token(cookie_token)
+        if user:
+            st.session_state.token = cookie_token
+            st.session_state.session_id = str(user["sub"])
+            st.session_state.messages = load_chat_history(user["sub"])
+        else:
+            controller.remove("auth_token")
 
+    user = auth.get_current_user(st.session_state)
     if not user:
         show_auth_page()
         return
 
-    if not st.session_state.library:
+    if st.session_state._needs_library_refresh:
+        refresh_library(user["sub"])
+        st.session_state._needs_library_refresh = False
+    elif not st.session_state.library:
         refresh_library(user["sub"])
 
     show_sidebar(user)
     show_chat(user)
 
-
-main()
+if __name__ == "__main__":
+    main()

@@ -15,15 +15,22 @@ def parse_papers_from_context(context: List[str]) -> List[dict]:
     papers = []
     for doc in context:
         paper = {}
+        current_key = None
         for line in doc.strip().split("\n"):
             if line.startswith("Title: "):
                 paper["title"] = line[7:].strip()
+                current_key = "title"
             elif line.startswith("Published: "):
                 paper["published_date"] = line[11:].strip()
+                current_key = "published_date"
             elif line.startswith("URL: "):
                 paper["url"] = line[5:].strip()
+                current_key = "url"
             elif line.startswith("Summary: "):
                 paper["summary"] = line[9:].strip()
+                current_key = "summary"
+            elif current_key == "summary" and line.strip():
+                paper["summary"] += " " + line.strip()
         if "title" in paper and "url" in paper:
             papers.append(paper)
     return papers
@@ -39,24 +46,28 @@ def get_existing_labels(supabase: Client, user_id: str) -> List[str]:
     return list({row["topic_label"] for row in response.data})
 
 
+
 def classify_topic(title: str, summary: str, existing_labels: List[str]) -> str:
     labels_text = ", ".join(existing_labels) if existing_labels else "None yet"
-    prompt = f"""You are a research librarian organizing academic papers into topic workspaces.
 
-Existing topic labels for this user: {labels_text}
+    prompt = f"""You are a precise research librarian. Assign a topic label to this paper.
 
-New paper to classify:
-Title: {title}
-Summary: {summary[:600]}
+Existing labels: {labels_text}
 
-Rules:
-1. If the paper fits well under an existing label, return that EXACT label string.
-2. If no existing label fits, create a new one: 4 words or fewer, title case, specific.
-3. Never create a label that is a rephrasing of an existing one."""
+Paper Title: {title}
+Paper Abstract: {summary[:800]}
+
+Strict rules:
+1. Only reuse an existing label if this paper is SPECIFICALLY about that exact topic. A paper about transformers or neural networks does NOT belong under 'Quantum Computing'.
+2. If no existing label is a precise match, create a NEW label (2-4 words, title case, specific to this paper's actual topic).
+3. When in doubt, create a new label. Precision matters more than reuse."""
 
     classifier = topic_llm.with_structured_output(TopicClassification)
-    result = classifier.invoke(prompt)
-    return result.topic_label
+    try:
+        result = classifier.invoke(prompt)
+        return result.topic_label
+    except Exception:
+        return "General Research"
 
 
 def save_article(supabase: Client, user_id: str, article: dict, topic_label: str) -> bool:
