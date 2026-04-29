@@ -12,7 +12,10 @@ def search_arxiv(query: str, max_retries=3):
         try:
             combined_summary = ""
             for result in search.results():
-                combined_summary += f"\n---\nTitle: {result.title}\nSummary: {result.summary}\n"
+                paper_url = result.entry_id
+                published_date = result.published.strftime("%Y-%m-%d") if result.published else "Unknown"
+                
+                combined_summary += f"\n---\nTitle: {result.title}\nPublished: {published_date}\nURL: {paper_url}\nSummary: {result.summary}\n"
             return combined_summary
         except arxiv.HTTPError as e:
             if attempt == max_retries - 1:

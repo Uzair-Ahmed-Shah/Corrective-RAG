@@ -50,7 +50,6 @@ def grade_documents(state: GraphState):
     question = state["question"]
     docs = state["documents"]
     
-    # We increment iteration here to keep track of how many times we've graded
     iteration = state.get("iteration", 0) + 1
     
     prompt = f"""You are a strict grader evaluating if a document is RELEVANT to a query.
@@ -65,7 +64,6 @@ def grade_documents(state: GraphState):
     3. We prefer a 'no' (triggering web search) over a 'yes' with bad data.
     """
 
-    # Structured Output enforces the Phase 1 schema (GradeResult) on the LLM
     grader_llm = llm.with_structured_output(GradeResult)
     response = grader_llm.invoke(prompt)
     
@@ -87,14 +85,11 @@ def web_search(state: GraphState):
     """
     print("---NODE: PERFORMING WEB SEARCH---")
     question = state["question"]
-    
-    # We search the web for the answer
+
     search_result = tavily.search(query=question, search_depth="advanced")
-    
-    # We extract just the content snippets from the search
+
     search_content = "\n".join([r["content"] for r in search_result["results"]])
-    
-    # We update the 'documents' in our state with this new web data
+
     return {"documents": [search_content]}
 
 def generate(state: GraphState):
@@ -106,16 +101,23 @@ def generate(state: GraphState):
     print("---NODE: GENERATING FINAL ANSWER---")
     question = state["question"]
     documents = state["documents"]
+
+    prompt = f"""You are a highly analytical technical research assistant. 
+    Your goal is to synthesize the following retrieved context into a concentrated, noise-free summary that directly answers the user's question.
     
-    # The Prompt: We tell the LLM to be a technical expert
-    prompt = f"""You are a technical research assistant. 
-    Use the following retrieved context to answer the user's question.
-    If you don't know the answer based on the context, say you don't know.
+    CRITICAL INSTRUCTIONS:
+    1. If the context contains research papers or web results, extract the main findings, methodologies, or conclusions.
+    2. Provide a deep, comprehensive answer. Do not just list the titles.
+    3. YOU MUST tag/cite your sources inline or at the bottom. Use the provided Titles, URLs, and publication dates.
+    4. If there is irrelevant noise in the context, ignore it and focus only on the best information.
+    5. If you don't know the answer based on the context, say you don't know.
     
     Question: {question}
-    Context: {documents}
     
-    Answer:"""
+    Retrieved Context: 
+    {documents}
+    
+    Synthesized Research Response:"""
 
     response = llm.invoke(prompt)
     
