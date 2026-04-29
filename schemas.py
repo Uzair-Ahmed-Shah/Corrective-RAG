@@ -30,3 +30,12 @@ class BatchGradeResult(BaseModel):
     verdicts: List[DocumentVerdict] = Field(
         description="A verdict for every document provided. Must contain one entry per document index."
     )
+
+
+class TopicClassification(BaseModel):
+    topic_label: str = Field(
+        description="A concise topic label of 4 words or fewer in title case. Must exactly match an existing label if the paper fits one, or be a new specific label if none match."
+    )
+    is_new_label: bool = Field(
+        description="True if this is a brand new topic label, False if it matches an existing one."
+    )
